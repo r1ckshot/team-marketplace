@@ -1,0 +1,9 @@
+{
+  "name": "block-env-writes",
+  "version": "1.0.0",
+  "description": "PreToolUse hook that blocks shell writes to .env* files (redirect, tee, cp/mv, sed -i, $IFS-obfuscated spaces, node -e/python -c inline writes).",
+  "author": {
+    "name": "r1ckshot",
+    "email": "kapusticnyk.com@gmail.com"
+  }
+}

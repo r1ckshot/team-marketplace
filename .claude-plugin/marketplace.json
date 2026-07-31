@@ -1,0 +1,23 @@
+{
+  "name": "team-marketplace",
+  "owner": {
+    "name": "r1ckshot",
+    "email": "kapusticnyk.com@gmail.com",
+    "url": "https://github.com/r1ckshot/team-marketplace"
+  },
+  "plugins": [
+    {
+      "name": "block-env-writes",
+      "source": "./plugins/block-env-writes",
+      "description": "PreToolUse hook that blocks shell writes to .env* files (redirect, tee, cp/mv, sed -i, $IFS-obfuscated spaces, node -e/python -c inline writes). Permission deny rules only see Write/Edit tool calls, not a shell writing the file itself.",
+      "version": "1.0.0",
+      "category": "safety",
+      "tags": ["hooks", "safety", "env", "guardrail"],
+      "author": {
+        "name": "r1ckshot",
+        "email": "kapusticnyk.com@gmail.com"
+      },
+      "strict": true
+    }
+  ]
+}

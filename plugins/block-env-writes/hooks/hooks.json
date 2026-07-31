@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Перевіряю, чи команда не пише в .env…",
+            "timeout": 10,
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/block-env-writes.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}
