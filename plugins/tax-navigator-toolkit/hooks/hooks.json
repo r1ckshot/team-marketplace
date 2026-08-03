@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Гейт перед комітом: мова message, тести, verify…",
+            "timeout": 300,
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-gate.mjs"
+          },
+          {
+            "type": "command",
+            "statusMessage": "Перевіряю, чи команда не пише в .env…",
+            "timeout": 10,
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/block-env-writes.mjs"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Перевіряю межу шарів…",
+            "timeout": 10,
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/layer-boundary.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const f=(JSON.parse(s||\"{}\").tool_input||{}).file_path||\"\";if(/\\.(tsx|css)$/.test(f))console.log(JSON.stringify({hookSpecificOutput:{hookEventName:\"PostToolUse\",additionalContext:\"Візуальна зміна — не називати роботу готовою, поки Mike не подивився очима (.claude/rules/visual-review.md).\"}}))})'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'const fs=require(\"fs\");try{console.log(JSON.stringify({hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:fs.readFileSync(\".claude/rules/environment-limits.md\",\"utf8\")}}))}catch(e){}'"
+          }
+        ]
+      }
+    ]
+  }
+}

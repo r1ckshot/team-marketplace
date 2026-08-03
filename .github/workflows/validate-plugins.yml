@@ -32,7 +32,7 @@ jobs:
     needs: static-validate
     strategy:
       matrix:
-        plugin: [block-env-writes]
+        plugin: [block-env-writes, tax-navigator-toolkit]
     steps:
       - uses: actions/checkout@v4
       - name: Install Claude Code CLI (native, stable channel)
@@ -41,8 +41,23 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Validate plugin manifest (no auth)
         run: claude plugin validate ./plugins/${{ matrix.plugin }}
-      - name: Isolated hook test (no auth, no LLM)
-        run: bash ./plugins/${{ matrix.plugin }}/hooks/test-block-env-writes.sh
+      # Every hooks/test-*.sh, not one hardcoded name: tax-navigator-toolkit
+      # ships three hooks with three suites, and a plugin whose tests are
+      # silently skipped is worse than a plugin with no tests — the badge
+      # still goes green.
+      - name: Isolated hook tests (no auth, no LLM)
+        run: |
+          shopt -s nullglob
+          suites=(./plugins/${{ matrix.plugin }}/hooks/test-*.sh)
+          if [ ${#suites[@]} -eq 0 ]; then
+            echo "No hook test suites found for ${{ matrix.plugin }}" >&2
+            exit 1
+          fi
+          for suite in "${suites[@]}"; do
+            echo "::group::$suite"
+            bash "$suite"
+            echo "::endgroup::"
+          done
       - name: Smoke install (requires ANTHROPIC_API_KEY)
         if: env.ANTHROPIC_API_KEY != ''
         env:
