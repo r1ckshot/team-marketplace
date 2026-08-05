@@ -52,7 +52,7 @@ presentation`, `rules.2026.json`, `docs/EVIDENCE.md`). В іншому репо 
 
 | Event | Matcher / умова | Що робить |
 |---|---|---|
-| `PreToolUse` | `Bash`, справжній `git commit` | `pre-commit-gate.mjs`: кирилиця в message → deny одразу; інакше `npm test` + `npm run verify`, будь-який провал → deny. Підкоманда визначається **розбором токенів**, а не регексом: поле `if:` у `settings.json` не фільтрує, і хук отримує кожну Bash-команду |
+| `PreToolUse` | `Bash`, справжній `git commit` | `pre-commit-gate.mjs`: коміт напряму в `master`/`main` → deny; кирилиця в message → deny; message без трейлера `Co-Authored-By` → deny; інакше `npm test` + `npm run verify`, будь-який провал → deny. Відірваний HEAD (rebase, cherry-pick) не блокується, як і коміти, чиє повідомлення не в команді (редактор, `--amend --no-edit`, `-C HEAD`) — трейлера там нема за побудовою. Трейлер звіряється як факт, не як імʼя моделі: воно змінюється разом із `/model`. Підкоманда визначається **розбором токенів**, а не регексом: поле `if:` у `settings.json` не фільтрує, і хук отримує кожну Bash-команду |
 | `PreToolUse` | `Bash` | `block-env-writes.mjs`: блокує запис у `.env*` через шелл — редирект, `tee`, `cp/mv`, `sed -i`, пробіли через `$IFS`, inline `node -e` / `python3 -c`. Permission-деній бачить лише `Write`/`Edit`, не шелл |
 | `PreToolUse` | `Write\|Edit` | `layer-boundary.mjs`: ті самі п'ять правил, що в `.dependency-cruiser.cjs`, але в момент запису файлу, а не після прогону тестів. Ловить react у `calc/`, адаптери в ядрі, компоненти в `app/lib/**`, пряме читання `rules.2026.json` з UI |
 | `PostToolUse` | `Write\|Edit` | Після правки `.tsx`/`.css` нагадує: візуальна зміна не «готова», поки її не побачила людина |
@@ -63,6 +63,6 @@ presentation`, `rules.2026.json`, `docs/EVIDENCE.md`). В іншому репо 
 
 ```bash
 bash hooks/test-layer-boundary.sh     # 25 кейсів
-bash hooks/test-pre-commit-gate.sh    # 12 кейсів
+bash hooks/test-pre-commit-gate.sh    # 24 кейси
 bash hooks/test-block-env-writes.sh   # 21 кейс
 ```

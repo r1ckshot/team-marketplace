@@ -48,6 +48,73 @@ check "Cyrillic in heredoc body"           deny '"git commit -F- <<EOF\nтіло
 check "amend with Cyrillic"                deny '"git commit --amend -m \"тест\""'
 
 echo
+echo "Attribution trailer — marker: the reason names Co-Authored-By."
+
+# Той самий приклад, що й у гілкових кейсах: на фіче-гілці хук іде далі й падає на
+# `npm test` (у fixture нема package.json), тож саме pass/deny нічого не розрізняє —
+# звіряти треба ТЕКСТ причини. Заразом fixture тримає тест швидким: жоден кейс не
+# доходить до справжнього прогону тестів цього репо.
+trailer_case() {
+  local name="$1" expected="$2" command="$3"
+  local dir out verdict
+  dir=$(mktemp -d)
+  (cd "$dir" && git init -q -b feat/x . && git commit -q --allow-empty -m init) >/dev/null 2>&1
+  out=$(cd "$dir" && printf '{"tool_name":"Bash","tool_input":{"command":%s}}' "$command" | node "$HOOK" 2>/dev/null)
+  rm -rf "$dir"
+  if printf '%s' "$out" | grep -q 'Co-Authored-By'; then verdict=deny-trailer; else verdict=passed-trailer-gate; fi
+  if [ "$verdict" = "$expected" ]; then
+    printf '  OK    %-52s %s\n' "$name" "$verdict"
+  else
+    printf '  FAIL  %-52s expected %s, got %s\n' "$name" "$expected" "$verdict"
+    fails=$((fails + 1))
+  fi
+}
+
+trailer_case "subject only, no trailer"    deny-trailer        '"git commit -m \"fix: x\""'
+trailer_case "body but still no trailer"   deny-trailer        '"git commit -m \"fix: x\" -m \"why it broke\""'
+trailer_case "trailer present"             passed-trailer-gate '"git commit -m \"fix: x\" -m \"Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>\""'
+# Модель у трейлері міняється разом із /model — гейт не має її знати.
+trailer_case "trailer names another model" passed-trailer-gate '"git commit -m \"fix: x\" -m \"Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\""'
+# Повідомлення не в команді: редактор, --amend --no-edit, -C HEAD. Трейлера в
+# рядку нема за побудовою, і гейт мусить мовчати, інакше блокує законні коміти.
+trailer_case "editor commit"               passed-trailer-gate '"git commit"'
+trailer_case "amend --no-edit"             passed-trailer-gate '"git commit --amend --no-edit"'
+trailer_case "reuse message from HEAD"     passed-trailer-gate '"git commit -C HEAD"'
+
+echo
+echo "Branch gate — fixture repos, real HEAD (marker: the hint about checkout -b):"
+
+# Гілку не підробити стабільно з поточного репо, тож кожен кейс отримує свій
+# одноразовий репозиторій. Маркер у reason важливий: на фіче-гілці хук теж
+# віддає deny (у fixture нема package.json, тож `npm test` падає) — і без звірки
+# ТЕКСТУ причини кейс "гілковий чек пропустив" був би нерозрізненний від блоку.
+branch_case() {
+  local name="$1" expected="$2" branch="$3"
+  local dir out verdict
+  dir=$(mktemp -d)
+  (
+    cd "$dir" || exit 1
+    git init -q -b "$branch" .
+    git commit -q --allow-empty -m init
+  ) >/dev/null 2>&1
+  out=$(cd "$dir" && printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m \\"fix: x\\""}}' | node "$HOOK" 2>/dev/null)
+  rm -rf "$dir"
+  if printf '%s' "$out" | grep -q 'checkout -b'; then verdict=deny-branch; else verdict=passed-branch-gate; fi
+  if [ "$verdict" = "$expected" ]; then
+    printf '  OK    %-52s %s\n' "$name" "$verdict"
+  else
+    printf '  FAIL  %-52s expected %s, got %s\n' "$name" "$expected" "$verdict"
+    fails=$((fails + 1))
+  fi
+}
+
+branch_case "commit on master"             deny-branch         master
+branch_case "commit on main"               deny-branch         main
+branch_case "commit on feat/x"             passed-branch-gate  feat/x
+branch_case "commit on docs/cleanup"       passed-branch-gate  docs/cleanup
+branch_case "branch named masterpiece"     passed-branch-gate  masterpiece
+
+echo
 if [ "$fails" -eq 0 ]; then
   echo "All cases passed."
 else

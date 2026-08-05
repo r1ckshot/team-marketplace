@@ -2,11 +2,15 @@
 /**
  * PreToolUse + matcher Bash + if: git commit* — гейт перед комітом.
  *
- * Замінює інлайн `npm test` у settings.json. Два чеки, обидва мають ловити
- * проблему ДО коміту, не після: кирилиця в message (правило CLAUDE.md
- * "коміти англійською" один раз протекло в subject — 2026-07-31) і
+ * Замінює інлайн `npm test` у settings.json. Три чеки, всі мають ловити проблему
+ * ДО коміту, не після: гілка (правило "у master напряму не комітимо" протекло
+ * 2026-08-04 — вісім файлів були застейджені просто в master), кирилиця в message
+ * (правило CLAUDE.md "коміти англійською" протекло в subject 2026-07-31) і
  * `npm test` + `npm run verify` (той самий клас, що й check-docs.mjs, лишень
  * рівнем раніше).
+ *
+ * Порядок чеків = від найдешевшого: обидва перші відповідають миттєво, тож на
+ * заблокованому коміті не витрачається півхвилини на тести.
  */
 import { spawnSync } from 'node:child_process';
 
@@ -27,9 +31,32 @@ process.stdin.on('end', () => {
   // кирилиця в commit message. Перевірено 2026-08-03 живими викликами.
   if (!isGitCommit(command)) process.exit(0);
 
+  const branch = currentBranch();
+  if (branch === 'master' || branch === 'main') {
+    deny(
+      `Коміт напряму в \`${branch}\` — CLAUDE.md, розділ Git: гілка на фічу, ` +
+        'у master тільки merge після підтвердження Mike.\n' +
+        'Застейджене нікуди не дінеться: git checkout -b <type>/<slug> і комітити там.'
+    );
+    return;
+  }
+
   const CYRILLIC = /[Ѐ-ӿ]/;
   if (CYRILLIC.test(command)) {
     deny('Кирилиця в git commit — коміти строго англійською (CLAUDE.md, розділ Git).');
+    return;
+  }
+
+  // Трейлер атрибуції. Ключ `attribution` у settings.json цього НЕ гарантує: він
+  // лише кладе інструкцію в контекст, а інструкцію можна проґавити — 2026-08-05
+  // два коміти пішли без трейлера саме так. Перевіряється сам ФАКТ трейлера, не
+  // імʼя моделі: Mike перемикає Opus/Sonnet/Fable під задачу, і дефолтний текст
+  // щоразу інший.
+  if (messageIsInCommand(command) && !/Co-Authored-By:\s*\S+.*@anthropic\.com/i.test(command)) {
+    deny(
+      'Коміт без трейлера Co-Authored-By — CLAUDE.md, розділ Git.\n' +
+        'Дописати останнім рядком тіла: Co-Authored-By: Claude <модель> <noreply@anthropic.com>'
+    );
     return;
   }
 
@@ -70,6 +97,27 @@ function isGitCommit(command) {
     }
   }
   return false;
+}
+
+/**
+ * Чи видно текст повідомлення прямо в команді. `git commit` без прапорця відкриває
+ * редактор, `--amend --no-edit` і `-C HEAD` переносять старе повідомлення — у всіх
+ * трьох трейлера в команді нема ЗА ПОБУДОВОЮ, і блокувати їх означало б ловити не
+ * те. Гейт спрацьовує лише там, де повідомлення справді складається зараз.
+ */
+function messageIsInCommand(command) {
+  return /(^|\s)(-m\b|--message\b|-F\s*-|--file[= ]-)/.test(command);
+}
+
+/**
+ * Гілка, на якій стоїть HEAD. Відірваний HEAD (`rebase`, `cherry-pick`, `bisect`)
+ * віддає рядок "HEAD" — і це свідомо НЕ блокується: лінеаризація власної історії
+ * перед вливанням у master дозволена (DECISIONS 2026-07-29), а коміти всередині
+ * rebase взагалі не проходять через цей хук.
+ */
+function currentBranch() {
+  const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : '';
 }
 
 function tail(s, n = 20) {
