@@ -23,7 +23,7 @@
       "name": "tax-navigator-toolkit",
       "source": "./plugins/tax-navigator-toolkit",
       "description": "Keeps a numbers-driven product honest while it grows: /scaffold-rule walks one figure from an allowlisted source to a test, /scaffold-scenario drives a whole vertical slice through all ten registration points, the scenario-tests skill derives benchmarks by hand and breaks the code on purpose to prove they hold, feature-ship gates the commit, and a PreToolUse hook refuses layer-crossing imports at write time instead of after the test run.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "category": "workflow",
       "tags": ["commands", "skills", "hooks", "testing", "architecture", "guardrail"],
       "author": {

@@ -1,6 +1,6 @@
 {
   "name": "tax-navigator-toolkit",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Tax Navigator toolkit: verified-number chain (scaffold-rule), whole vertical slice (scaffold-scenario), mutation-checked benchmarks, DoD gate before commit, and layer-boundary enforcement at write time.",
   "author": {
     "name": "r1ckshot",

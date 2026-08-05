@@ -63,6 +63,6 @@ presentation`, `rules.2026.json`, `docs/EVIDENCE.md`). В іншому репо 
 
 ```bash
 bash hooks/test-layer-boundary.sh     # 25 кейсів
-bash hooks/test-pre-commit-gate.sh    # 24 кейси
+bash hooks/test-pre-commit-gate.sh    # 26 кейсів
 bash hooks/test-block-env-writes.sh   # 21 кейс
 ```

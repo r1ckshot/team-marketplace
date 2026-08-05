@@ -117,7 +117,15 @@ function messageIsInCommand(command) {
  */
 function currentBranch() {
   const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.trim() : '';
+  if (r.status === 0) return r.stdout.trim();
+
+  // Репо без жодного коміта: `rev-parse` на НЕНАРОДЖЕНІЙ гілці падає, хоча гілка
+  // вже названа — `symbolic-ref` її бачить. Без цього запасного шляху найперший
+  // коміт у свіжому репо йшов повз гейт саме там, де гейт найпотрібніший.
+  // Знайдено не локально, а в CI: там нема user.email, тестова фікстура не змогла
+  // створити коміт — і кейс «коміт у master» раптом став зеленим.
+  const symbolic = spawnSync('git', ['symbolic-ref', '--short', 'HEAD'], { encoding: 'utf8' });
+  return symbolic.status === 0 ? symbolic.stdout.trim() : '';
 }
 
 function tail(s, n = 20) {

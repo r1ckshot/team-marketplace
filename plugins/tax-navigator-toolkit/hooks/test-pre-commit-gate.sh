@@ -89,13 +89,29 @@ echo "Branch gate — fixture repos, real HEAD (marker: the hint about checkout 
 # віддає deny (у fixture нема package.json, тож `npm test` падає) — і без звірки
 # ТЕКСТУ причини кейс "гілковий чек пропустив" був би нерозрізненний від блоку.
 branch_case() {
-  local name="$1" expected="$2" branch="$3"
+  local name="$1" expected="$2" branch="$3" seed="${4:-with-commit}"
   local dir out verdict
   dir=$(mktemp -d)
+  if [ "$seed" = "unborn" ]; then
+    (cd "$dir" && git init -q -b "$branch" .) >/dev/null 2>&1
+    out=$(cd "$dir" && printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m \\"fix: x\\""}}' | node "$HOOK" 2>/dev/null)
+    rm -rf "$dir"
+    if printf '%s' "$out" | grep -q 'checkout -b'; then verdict=deny-branch; else verdict=passed-branch-gate; fi
+    if [ "$verdict" = "$expected" ]; then
+      printf '  OK    %-52s %s\n' "$name" "$verdict"
+    else
+      printf '  FAIL  %-52s expected %s, got %s\n' "$name" "$expected" "$verdict"
+      fails=$((fails + 1))
+    fi
+    return
+  fi
+  # Ідентичність — прапорцями, а не з глобального конфігу: у CI його нема, коміт
+  # мовчки не створювався, гілка лишалась ненародженою, і кейс "коміт у master"
+  # ставав зеленим через дірку в хуку, а не через справність. Знайдено релізом 1.1.0.
   (
     cd "$dir" || exit 1
     git init -q -b "$branch" .
-    git commit -q --allow-empty -m init
+    git -c user.email=ci@example.com -c user.name=ci commit -q --allow-empty -m init
   ) >/dev/null 2>&1
   out=$(cd "$dir" && printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m \\"fix: x\\""}}' | node "$HOOK" 2>/dev/null)
   rm -rf "$dir"
@@ -113,6 +129,11 @@ branch_case "commit on main"               deny-branch         main
 branch_case "commit on feat/x"             passed-branch-gate  feat/x
 branch_case "commit on docs/cleanup"       passed-branch-gate  docs/cleanup
 branch_case "branch named masterpiece"     passed-branch-gate  masterpiece
+
+# Репо без ЖОДНОГО коміта — гілка ненароджена, `rev-parse` падає. Саме цей стан
+# ховав дірку в хуку до 2026-08-05: перший коміт у свіжому репо йшов повз гейт.
+branch_case "first commit ever, on master" deny-branch         master       unborn
+branch_case "first commit ever, on feat/x" passed-branch-gate  feat/x       unborn
 
 echo
 if [ "$fails" -eq 0 ]; then
